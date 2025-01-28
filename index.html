@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Indoor Navigation System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #e0f7fa, #ffffff);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #00796b;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            animation: fadeIn 1s ease forwards;
+        }
+
+        .search-container {
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        select {
+            padding: 15px;
+            font-size: 1.2em;
+            width: 80%;
+            border: 2px solid #00796b;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 15px 20px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .icon-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .icon {
+            text-align: center;
+            font-size: 1.5em;
+            color: #00796b;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #map-container {
+            margin: 20px;
+            width: 800px;
+            height: 500px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .room {
+            fill: #ffffff;
+            stroke: #00796b;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>College Indoor Navigation System</h1>
+    <div class="search-container">
+        <select id="destination">
+            <option value="">Select destination</option>
+            <option value="library">Library</option>
+            <option value="cse">Computer Science</option>
+            <option value="it">Information Technology</option>
+            <option value="ece">Electronics Engineering</option>
+            <option value="eee">Electrical Engineering</option>
+            <option value="mech">Mechanical Engineering</option>
+        </select>
+        <button onclick="navigate()">Go</button>
+    </div>
+
+    <div id="map-container">
+        <svg width="100%" height="100%">
+            <rect x="50" y="50" width="200" height="150" class="room" id="library"/>
+            <rect x="300" y="50" width="150" height="100" class="room" id="cse"/>
+            <rect x="500" y="50" width="150" height="100" class="room" id="it"/>
+            <rect x="50" y="250" width="150" height="100" class="room" id="ece"/>
+            <rect x="250" y="250" width="150" height="100" class="room" id="eee"/>
+            <rect x="450" y="250" width="150" height="100" class="room" id="mech"/>
+            <path id="path" fill="none" stroke="#00796b" stroke-width="4" stroke-dasharray="5"/>
+        </svg>
+    </div>
+
+    <script>
+        let currentLocation = null;
+
+        document.querySelectorAll('.room').forEach(room => {
+            room.addEventListener('click', () => {
+                currentLocation = room.id;
+                document.querySelectorAll('.room').forEach(r => r.style.fill = '#ffffff');
+                room.style.fill = '#e0f7fa';
+            });
+        });
+
+        function navigate() {
+            const destination = document.getElementById('destination').value;
+            if (!destination) return alert('Please select a destination');
+            if (!currentLocation) return alert('Please select your current location');
+            if (currentLocation === destination) return alert('You are already here!');
+
+            const path = calculatePath(currentLocation, destination);
+            drawPath(path);
+        }
+
+        function calculatePath(start, end) {
+            const nodes = {
+                entrance: {x: 100, y: 400},
+                corridor1: {x: 250, y: 400},
+                corridor2: {x: 400, y: 400},
+                corridor3: {x: 550, y: 400},
+                library: {x: 150, y: 125},
+                cse: {x: 375, y: 100},
+                it: {x: 575, y: 100},
+                ece: {x: 125, y: 300},
+                eee: {x: 325, y: 300},
+                mech: {x: 525, y: 300}
+            };
+
+            const graph = {
+                entrance: {corridor1: 1},
+                corridor1: {entrance: 1, corridor2: 1, library: 1, ece: 1},
+                corridor2: {corridor1: 1, corridor3: 1, cse: 1, eee: 1},
+                corridor3: {corridor2: 1, it: 1, mech: 1},
+                library: {corridor1: 1},
+                cse: {corridor2: 1},
+                it: {corridor3: 1},
+                ece: {corridor1: 1},
+                eee: {corridor2: 1},
+                mech: {corridor3: 1}
+            };
+
+            return dijkstra(graph, start, end).map(node => nodes[node]);
+        }
+
+        function dijkstra(graph, start, end) {
+            const costs = {[start]: 0};
+            const parents = {};
+            const processed = [];
+            let node = start;
+
+            while (node) {
+                let cost = costs[node];
+                let neighbors = graph[node];
+                for (let n in neighbors) {
+                    let newCost = cost + neighbors[n];
+                    if (!costs[n] || newCost < costs[n]) {
+                        costs[n] = newCost;
+                        parents[n] = node;
+                    }
+                }
+                processed.push(node);
+                node = Object.keys(costs).reduce((lowest, key) => 
+                    !processed.includes(key) && (lowest === null || costs[key] < costs[lowest]) ? key : lowest, null);
+            }
+
+            let path = [end];
+            while (path[0] !== start) {
+                path.unshift(parents[path[0]]);
+            }
+            return path;
+        }
+
+        function drawPath(points) {
+            const path = document.getElementById('path');
+            path.setAttribute('d', 
+                'M' + points[0].x + ',' + points[0].y + 
+                ' ' + points.map(p => 'L' + p.x + ',' + p.y).join(' '));
+        }
+    </script>
+</body>
+</html>
